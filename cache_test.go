@@ -294,17 +294,58 @@ func addToCache(cache *MemoryQuestionCache, time int64) {
 }
 
 func TestQuestionCacheGetFromTimestamp(t *testing.T) {
-	memCache := makeQuestionCache(100)
+	memCache := NewMemoryQuestionCache(200, 100)
 	for i := 0; i < 100; i++ {
 		addToCache(memCache, int64(i))
 	}
 
-	entries := memCache.GetOlder(50)
+	entries := memCache.GetOlderThan(50)
 	assert.Len(t, entries, 49)
-	entries = memCache.GetOlder(0)
+	entries = memCache.GetOlderThan(0)
 	assert.Len(t, entries, 99)
-	entries = memCache.GetOlder(-1)
+	entries = memCache.GetOlderThan(-1)
 	assert.Len(t, entries, 100)
-	entries = memCache.GetOlder(200)
+	entries = memCache.GetOlderThan(200)
 	assert.Len(t, entries, 0)
+}
+
+func dumpCache(c *MemoryQuestionCache) {
+	for i, e := range c.Backend {
+		fmt.Printf("%d %d\n", i, e.Date)
+	}
+	fmt.Println()
+}
+
+func TestQuestionCacheSizeLimit(t *testing.T) {
+	shiftSize := 5
+	size := 10
+	memCache := NewMemoryQuestionCache(10, shiftSize)
+	for i := 0; i < size; i++ {
+		addToCache(memCache, int64(i))
+	}
+	assert.Equal(t, int64(0), memCache.Backend[0].Date)
+	assert.Equal(t, int64(size-1), memCache.Backend[size-1].Date)
+	assert.Equal(t, 10, len(memCache.Backend))
+
+	// fill up over the max size, using all the shift block size
+	for i := size; i < size+shiftSize; i++ {
+		addToCache(memCache, int64(i))
+	}
+	assert.Equal(t, int64(0), memCache.Backend[0].Date)
+	assert.Equal(t, int64(shiftSize+size-1), memCache.Backend[size+shiftSize-1].Date)
+	assert.Equal(t, size+shiftSize, len(memCache.Backend))
+
+	// go one over the size+shiftSize. This will cause the backend to
+	// shrink by shiftSize
+	addToCache(memCache, 10)
+
+	assert.Equal(t, int64(shiftSize), memCache.Backend[0].Date)
+	assert.Equal(t, int64(10), memCache.Backend[size].Date)
+	assert.Equal(t, size+1, len(memCache.Backend))
+
+	// add another entry: this will not cause another shrink
+	addToCache(memCache, 11)
+	assert.Equal(t, int64(shiftSize), memCache.Backend[0].Date)
+	assert.Equal(t, int64(11), memCache.Backend[size+1].Date)
+	assert.Equal(t, size+2, len(memCache.Backend))
 }

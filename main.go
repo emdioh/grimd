@@ -69,7 +69,7 @@ func main() {
 	// BlockCache contains all blocked domains
 	blockCache := &MemoryBlockCache{Backend: make(map[string]bool)}
 	// QuestionCache contains all queries to the dns server
-	questionCache := makeQuestionCache(config.QuestionCacheCap)
+	questionCache := NewMemoryQuestionCache(config.QuestionCacheCap, 100)
 
 	reloadChan := make(chan bool)
 

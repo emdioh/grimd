@@ -65,7 +65,7 @@ func StartAPIServer(config *Config,
 		}
 		c.IndentedJSON(http.StatusOK, gin.H{
 			"length": questionCache.Length(),
-			"items":  questionCache.GetOlder(highWater),
+			"items":  questionCache.GetOlderThan(highWater),
 		})
 	})
 

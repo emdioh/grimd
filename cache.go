@@ -95,9 +95,10 @@ type MemoryBlockCache struct {
 
 // MemoryQuestionCache type
 type MemoryQuestionCache struct {
-	Backend  []QuestionCacheEntry `json:"entry"`
-	Maxcount int
-	mu       sync.RWMutex
+	Backend   []QuestionCacheEntry `json:"entry"`
+	Maxcount  int
+	mu        sync.RWMutex
+	shiftSize int
 }
 
 // Get returns the entry for a key or an error
@@ -279,11 +280,21 @@ func (c *MemoryBlockCache) Length() int {
 	return len(c.Backend)
 }
 
+// NewMemoryQuestionCache builds a new MemoryQuestionCache
+func NewMemoryQuestionCache(maxCount int, shiftSize int) *MemoryQuestionCache {
+	return &MemoryQuestionCache{
+		Backend:   make([]QuestionCacheEntry, 0),
+		Maxcount:  maxCount,
+		shiftSize: shiftSize,
+	}
+}
+
 // Add adds a question to the cache
 func (c *MemoryQuestionCache) Add(q QuestionCacheEntry) {
 	c.mu.Lock()
-	if c.Maxcount != 0 && len(c.Backend) >= c.Maxcount {
-		c.Backend = nil
+	currentLen := len(c.Backend)
+	if c.Maxcount != 0 && currentLen >= (c.Maxcount+c.shiftSize) {
+		c.Backend = c.Backend[c.shiftSize:]
 	}
 	c.Backend = append(c.Backend, q)
 	c.mu.Unlock()
@@ -303,8 +314,8 @@ func (c *MemoryQuestionCache) Length() int {
 	return len(c.Backend)
 }
 
-// GetOlder eturns a slice of the entries older than `time`
-func (c *MemoryQuestionCache) GetOlder(time int64) []QuestionCacheEntry {
+// GetOlderThan eturns a slice of the entries older than `time`
+func (c *MemoryQuestionCache) GetOlderThan(time int64) []QuestionCacheEntry {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for i, e := range c.Backend {
